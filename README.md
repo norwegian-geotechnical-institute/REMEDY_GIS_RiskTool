@@ -12,10 +12,10 @@ For all cornerpoints on building polygons within the zone of influence surroundi
 ## Installation
 Asgeir to write intro here about the installation
 
-**For use with ArcGIS Pro**
+### For use with ArcGIS Pro
 Asgeir to write short decription
 
-**For use with QGIS**
+### For use with QGIS
 Asgeir to write short decription
 
 ## Feedback and Contribute
