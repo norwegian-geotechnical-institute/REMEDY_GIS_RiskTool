@@ -10,13 +10,13 @@ For all cornerpoints on building polygons within the zone of influence surroundi
 2. Analysis of groundwater drawdown-induced consolidation settlements in clay, with distance from wall, based on experience database 
 
 ## Installation
-Asgeir to write intro here about the installation
+Copy the source files to a local drive or server drive, keep all the python files, the toolbox (tbx) file and the json file in the same folder. Create a folder for the execution log and the results, and unzip the folder containing the layer files. Make sure the directories specified on the top in the ArcGIS wrappers point to the log and lyr folders. 
 
 ### For use with ArcGIS Pro
-Asgeir to write short decription
+Download the latest version of ESRI ArcGIS Pro Standard. Create a new project according to the user manual, and connect to the folder where the code is located, using "Add folder connection". Then add the toolbox file "BegrensSkade_GIBV.tbx" to the ArcGIS project by using "Add toolbox". All necessary python packages should be available with the latest ArcGIS installation. Expand the toolbox and run any of the three programs, follow the user manual if necessary.
 
 ### For use with QGIS
-Asgeir to write short decription
+The python file "BegrensSkade.py" contains three functions for the three programs "Excavation, ImpactMap and Tunnel". These functions are independent of arcpy and can be run in a open-source environment, for example QGIS, without the ArcGIS wrappers. The function arguments are described in the code and in the user manual. Required python libraries must be installed manually by the user. Input feature shapefiles and rasters have to be in the same coordinate system in this option. 
 
 ## Feedback and Contribute
 Have you identified a problem with the code? Have a feature request? We want to hear about it!
