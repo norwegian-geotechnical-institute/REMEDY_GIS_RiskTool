@@ -251,7 +251,7 @@ def get_sv_short_Peck(near_dist, tunnel_depth, tunnel_diameter, volume_loss, tro
 
 def get_sv_long_janbu(writer, dtb, dry_crust_thk, dep_groundwater, density_sat, OCR, porewp_red, p_ref, janbu_const, janbu_m, consolidation_time):
     density_water = 10  # kN/m3
-    permeability = 5e-10  # (m/s)
+    permeability = 1e-9  # (m/s)
     adj = False
     dep_to_clay = max(dry_crust_thk, dep_groundwater)
     clay_thk = dtb - dep_to_clay
