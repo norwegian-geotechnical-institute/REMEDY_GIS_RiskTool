@@ -17,7 +17,6 @@ def mainBegrensSkade_Excavation(
     excavationJson, #Excavation outline as json
     output_ws, #Output folder for result storage
     feature_name, #Name of the result shapefiles
-    working_proj,  #PCSC Code of the Coordinate system for input shapefiles/rasters, refer to Utils.epsgMapping{}
     output_proj, #PCSC Code of the Coordinate system for result shapefiles, refer to Utils.epsgMapping{}
     bShortterm, #Boolean flag for short term settlement calculations
     excavation_depth="", #Depth of excavation, necessary for short term calculation
@@ -152,8 +151,6 @@ def mainBegrensSkade_Excavation(
         )
 
     logger.info("TIME - gotten " + str(len(buildings)) + " buildings from shapefile")
-    csv_log = open(r"P:\2017\11\20171105\Beregninger\GIS_model\Prototype\log\janbu_tables.csv", "w", newline="",)
-    writer = csv.writer(csv_log, delimiter=";")
 
     count_adj = 0
     logger.info("TIME - calculate settlements")
@@ -242,7 +239,6 @@ def mainBegrensSkade_Excavation(
                 porewp_red_atdist = porewp_red * longterm_porewr
 
                 sv_long, red_adj = BegrensSkadeLib.get_sv_long_janbu(
-                    writer,
                     corner.dtb,
                     dry_crust_thk,
                     dep_groundwater,
@@ -410,23 +406,21 @@ def mainBegrensSkade_Excavation(
     logger.info("TIME - writing results to shape")
     building_shapefile = output_ws + os.sep + building_name + ".shp"
     building_shapefile_prj = output_ws + os.sep + building_name + "_prj.shp"
-    BegrensSkadeLib.writeBuildingsToShape(building_shapefile, buildings, working_proj, filterValue, logger)
-    Utils.projectLayer(building_shapefile,building_shapefile_prj,str(working_proj), str(output_proj), "polygon")
+    BegrensSkadeLib.writeBuildingsToShape(building_shapefile, buildings, output_proj, filterValue, logger)
+    #Utils.projectLayer(building_shapefile,building_shapefile_prj,str(working_proj), str(output_proj), "polygon")
 
     wall_shapefile = output_ws + os.sep + wall_name + ".shp"
     wall_shapefile_prj = output_ws + os.sep + wall_name + "_prj.shp"
-    BegrensSkadeLib.writeWallsToShape(wall_shapefile, buildings, working_proj, filterValue, logger)
-    Utils.projectLayer(wall_shapefile,wall_shapefile_prj,str(working_proj), str(output_proj),"line")
+    BegrensSkadeLib.writeWallsToShape(wall_shapefile, buildings, output_proj, filterValue, logger)
+    #Utils.projectLayer(wall_shapefile,wall_shapefile_prj,str(working_proj), str(output_proj),"line")
 
     corner_shapefile = output_ws + os.sep + corner_name + ".shp"
     corner_shapefile_prj = output_ws + os.sep + corner_name + "_prj.shp"
-    BegrensSkadeLib.writeCornersToShape(corner_shapefile, buildings, working_proj, filterValue, logger)
-    Utils.projectLayer(corner_shapefile,corner_shapefile_prj,str(working_proj), str(output_proj),"point")
+    BegrensSkadeLib.writeCornersToShape(corner_shapefile, buildings, output_proj, filterValue, logger)
+    #Utils.projectLayer(corner_shapefile,corner_shapefile_prj,str(working_proj), str(output_proj),"point")
     logger.info("TIME - written all shapefiles")
 
-    csv_log.close()
-
-    return [building_shapefile_prj, wall_shapefile_prj, corner_shapefile_prj]
+    return [building_shapefile, wall_shapefile, corner_shapefile]
 
 
 def mainBegrensSkade_ImpactMap(
@@ -435,7 +429,6 @@ def mainBegrensSkade_ImpactMap(
     output_ws, #Output folder for result storage
     output_name, #Name of the result raster
     CALCULATION_RANGE, #Range of longterm settlement calculation
-    working_proj,  #PCSC Code of the Coordinate system for input shapefiles/rasters, refer to Utils.epsgMapping{}
     output_proj, #PCSC Code of the Coordinate system for result shapefiles, refer to Utils.epsgMapping{}
     dtb_raster="", #Depth to bedrock tiff raster for long term settlement (path string)
     pw_reduction_curve="Middels poretrykksreduksjon", #Porewater reduction curve for long term settlement, refer to manual for options
@@ -485,8 +478,6 @@ def mainBegrensSkade_ImpactMap(
     logger.debug("Calling get_construction_corners_from_ArcGIS_json with json: {}".format(excavationJson))
     construction_area_corners = BegrensSkadeLib.get_construction_corners_from_ArcGIS_json(excavationJson, CONSTR_RESAMPLE_LEN, logger)
 
-    csv_log = open("U:\janbu_tables_impactmap.csv", "w", newline="",)
-    writer = csv.writer(csv_log, delimiter=";")
     logger.info("START calculate settlements")
 
     dataset = gdal.Open(str(dtb_raster))
@@ -553,7 +544,6 @@ def mainBegrensSkade_ImpactMap(
                 porewp_red_atdist = porewp_red * longterm_porewr
 
                 sv_long, red_adj = BegrensSkadeLib.get_sv_long_janbu(
-                    writer,
                     dtb,
                     dry_crust_thk,
                     dep_groundwater,
@@ -664,7 +654,6 @@ def mainBegrensSkade_ImpactMap(
 
     del outData
 
-    csv_log.close()
     logger.info("DONE writing results")
 
     return outFile
@@ -676,7 +665,6 @@ def mainBegrensSkade_Tunnel(
     tunnelJson, #Tunnel outline as json
     output_ws, #Output folder for result storage
     feature_name, #Name of the result shapefiles
-    working_proj,  #PCSC Code of the Coordinate system for input shapefiles/rasters, refer to Utils.epsgMapping{}
     output_proj, #PCSC Code of the Coordinate system for result shapefiles, refer to Utils.epsgMapping{}
     bShortterm, #Boolean flag for short term settlement calculations
     tunnel_depth="", #Depth to tunnel
@@ -782,7 +770,7 @@ def mainBegrensSkade_Tunnel(
 
     logger.debug(
         f"### mainBegrenSkade called with: \nbuildingsFN: {buildingsFN}, tunnelJson: {tunnelJson},output_ws: {output_ws}, "
-        f"feature_name: {feature_name}, coord_syst: {working_proj}, bShortterm: {bShortterm}, "
+        f"feature_name: {feature_name}, coord_syst: {output_proj}, bShortterm: {bShortterm}, "
         f"tunnel_depth: {tunnel_depth}, tunnel_diameter: {tunnel_diameter}, volume_loss: {volume_loss}, trough_width: {trough_width},  bLongterm: {bLongterm},"
         f"tunnel_leakage: {tunnel_leakage}, porewp_calc_type: {porewp_calc_type}, porewp_red_at_site: {porewp_red_at_site}, dtb_raster: {dtb_raster}, "
         f"dry_crust_thk: {dry_crust_thk}, density_sat: {density_sat},OCR: {OCR}, janbu_ref_stress: {janbu_ref_stress}, janbu_const: {janbu_const}, "
@@ -816,8 +804,6 @@ def mainBegrensSkade_Tunnel(
         )
 
     logger.info("Gotten buildings from shapefile")
-    csv_log = open(r"P:\2017\11\20171105\Beregninger\GIS_model\Prototype\log\janbu_tables.csv", "w", newline="",)
-    writer = csv.writer(csv_log, delimiter=";")
 
     count_adj = 0
     logger.info("Calculate settlements")
@@ -882,7 +868,6 @@ def mainBegrensSkade_Tunnel(
                     )
 
                 sv_long, red_adj = BegrensSkadeLib.get_sv_long_janbu(
-                    writer,
                     corner.dtb,
                     dry_crust_thk,
                     dep_groundwater,
@@ -1039,13 +1024,13 @@ def mainBegrensSkade_Tunnel(
     now = datetime.now()  # current date and time
     date_time_str = now.strftime("_%Y%m%d_%H%M%S")
 
-    corner_name = feature_name + date_time_str + "_C"
-    wall_name = feature_name + date_time_str + "_W"
-    building_name = feature_name + date_time_str + "_B"
+    corner_name = feature_name + date_time_str + "_C_"
+    wall_name = feature_name + date_time_str + "_W_"
+    building_name = feature_name + date_time_str + "_B_"
     if bShortterm:
-        corner_name += "_S"
-        wall_name += "_S"
-        building_name += "_S"
+        corner_name += "S"
+        wall_name += "S"
+        building_name += "S"
     if bLongterm:
         corner_name += "L"
         wall_name += "L"
@@ -1063,24 +1048,22 @@ def mainBegrensSkade_Tunnel(
 
     logger.info("TIME - writing results to shape")
     building_shapefile = output_ws + os.sep + building_name + ".shp"
-    building_shapefile_prj = output_ws + os.sep + building_name + "_prj.shp"
-    BegrensSkadeLib.writeBuildingsToShape(building_shapefile, buildings, working_proj, filterValue, logger)
-    Utils.projectLayer(building_shapefile,building_shapefile_prj,str(working_proj), str(output_proj), "polygon")
+    #building_shapefile_prj = output_ws + os.sep + building_name + "_prj.shp"
+    BegrensSkadeLib.writeBuildingsToShape(building_shapefile, buildings, output_proj, filterValue, logger)
+    #Utils.projectLayer(building_shapefile,building_shapefile_prj,str(working_proj), str(output_proj), "polygon")
 
     wall_shapefile = output_ws + os.sep + wall_name + ".shp"
-    wall_shapefile_prj = output_ws + os.sep + wall_name + "_prj.shp"
+    #wall_shapefile_prj = output_ws + os.sep + wall_name + "_prj.shp"
     logger.debug("wall_shapefile:{}".format(wall_shapefile))
-    BegrensSkadeLib.writeWallsToShape(wall_shapefile, buildings, working_proj, filterValue, logger)
-    Utils.projectLayer(wall_shapefile,wall_shapefile_prj,str(working_proj), str(output_proj), "line")
+    BegrensSkadeLib.writeWallsToShape(wall_shapefile, buildings, output_proj, filterValue, logger)
+    #Utils.projectLayer(wall_shapefile,wall_shapefile_prj,str(working_proj), str(output_proj), "line")
 
     corner_shapefile = output_ws + os.sep + corner_name + ".shp"
-    corner_shapefile_prj = output_ws + os.sep + corner_name + "_prj.shp"
+    #corner_shapefile_prj = output_ws + os.sep + corner_name + "_prj.shp"
     logger.debug("corner_shapefile:{}".format(corner_shapefile))
-    BegrensSkadeLib.writeCornersToShape(corner_shapefile, buildings, working_proj, filterValue, logger)
-    Utils.projectLayer(corner_shapefile,corner_shapefile_prj,str(working_proj), str(output_proj),"point")
+    BegrensSkadeLib.writeCornersToShape(corner_shapefile, buildings, output_proj, filterValue, logger)
+    #Utils.projectLayer(corner_shapefile,corner_shapefile_prj,str(working_proj), str(output_proj),"point")
     logger.info("TIME - written all shapefiles")
 
-    csv_log.close()
-
-    return [building_shapefile_prj, wall_shapefile_prj, corner_shapefile_prj]
+    return [building_shapefile, wall_shapefile, corner_shapefile]
 

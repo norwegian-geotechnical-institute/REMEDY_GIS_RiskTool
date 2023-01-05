@@ -154,12 +154,12 @@ class Building:
             try:
                 thetamax = 0.5 * np.arctan(slope_angle / hor_tensile_strain)
             except:
-                thetamax = Null
+                thetamax = None
 
             try:
                 principal_tensile_strain = hor_tensile_strain * (np.cos(thetamax)) ** 2 + slope_angle * np.sin(thetamax) * np.cos(thetamax)
             except:
-                principal_tensile_strain = Null
+                principal_tensile_strain = None
 
             self.walls.append(Wall(cid,
                                    self.corners[i-1], self.corners[i], slope_angle, hor_tensile_strain, principal_tensile_strain))
@@ -249,7 +249,7 @@ def get_sv_short_Peck(near_dist, tunnel_depth, tunnel_diameter, volume_loss, tro
 
 ################## JANBU LONG TERM SETTLEMENT CALCULATION #################
 
-def get_sv_long_janbu(writer, dtb, dry_crust_thk, dep_groundwater, density_sat, OCR, porewp_red, p_ref, janbu_const, janbu_m, consolidation_time):
+def get_sv_long_janbu(dtb, dry_crust_thk, dep_groundwater, density_sat, OCR, porewp_red, p_ref, janbu_const, janbu_m, consolidation_time):
     density_water = 10  # kN/m3
     permeability = 1e-9  # (m/s)
     adj = False
@@ -260,10 +260,6 @@ def get_sv_long_janbu(writer, dtb, dry_crust_thk, dep_groundwater, density_sat, 
     janbu_M_avgs = []  #depth average of janbu_M to be used in terzagi time equation
     METHOD = "LYR"
     #METHOD = "AVG"
-
-    if write_csv:
-        writer.writerow(["Janbu long term analysis at corner, dtb = " + str(dtb) + " m, dry crust thk: " + str(dry_crust_thk) + ", depth to groundwater: " + str(dep_groundwater) ])
-        writer.writerow(['Clay depth', 'pz0', 'uz0', 'pz0_eff', 'pz_pre', 'porewp_red', 'uz0_tot', 'clay_dep_lyr', 'du', 'janbu_M', 'sv_lyr_inf', 'sv_lyr_(t)'])
 
     for clay_dep_i in range(int(round(dep_to_clay, 0)), int(round(dtb, 0))):
 
@@ -313,19 +309,6 @@ def get_sv_long_janbu(writer, dtb, dry_crust_thk, dep_groundwater, density_sat, 
 
         sv_acc += sv
 
-        if write_csv:
-            writer.writerow([clay_dep_i, pz0, uz0,pz0_eff,pz_pre,porewp_red,uz0_tot,clay_dep_lyr,du,janbu_M,sv_inf,sv])
-
-        # if sv < 0 or uz0 < 0:
-        #    log.write(regime + " " )
-        #    log.write(str(near_dist) + " ")
-        #    log.write(str(dtb) + " ")
-        #    log.write(str(clay_dep)+ " ")
-        #    log.write( str(pz0_eff)+ " ")
-        #    log.write(str(pz_pre)+ " ")
-        #    log.write(str(pz0)+ " ")
-        #    log.write( str(janbu_M)+ " ")
-        #    log.write(str(sv)+ " \n")
 
 
 
@@ -337,8 +320,6 @@ def get_sv_long_janbu(writer, dtb, dry_crust_thk, dep_groundwater, density_sat, 
         T = c * t / (clay_thk) ** 2
         sv_acc = sv_acc * U_draintop_b(T, 10)
 
-    if write_csv:
-        writer.writerow(["sv_acc: " + str(sv_acc)])
     return sv_acc, adj
 
 
@@ -591,7 +572,6 @@ def get_buildings(features, fieldNameFoundation=None, fieldNameStructure=None, f
                      foundation=foundation, structure=structure, status=status, logger=logger))
         #logger.debug(f"Building {bid}, num corners: {len(corners)}, area: {g.GetArea()}, length: {g.Length()} - get_buildings")
         bid += 1
-    logger.debug(f"Skipping no buildings in shortterm. Added buildings {numBuildings} - get_buildings")
     return input_buildings
 
 def get_buildings_with_dtb(features, dtb_filename, fieldNameFoundation=None, fieldNameStructure=None, fieldNameStatus=None, logger=None) -> []:

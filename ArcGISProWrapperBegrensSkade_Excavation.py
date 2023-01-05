@@ -123,21 +123,21 @@ else:
     structure_field = None
     status_field = None
 
-##############  SET PROJECTION ###########################
-working_proj = Utils_arcpy.getProjCodeFromFC(building_polys_fl)
+##############  GET INPUT PROJECTIONS ####################
+building_proj = Utils_arcpy.getProjCodeFromFC(building_polys_fl)
 excavation_proj = Utils_arcpy.getProjCodeFromFC(excavation_polys_fl)
 
-########  PROJECT EXCAVATION POLY IF NECESSARY ###########
-excavation_polys_projected = False
-if excavation_proj != working_proj:
-    arcpy.AddMessage("Projecting excavation polygon..")
-    excavation_polys_projected = output_folder + os.sep + "exc_proj.shp"
-    arcpy.Project_management(excavation_polys_fl, excavation_polys_projected, working_proj)
-    excavation_polys_fl = excavation_polys_projected
+###  GET EXCAVATION ANS BUILDINGS ON SAME PROJECTION #####
+excavation_polys_matched = False
+if  excavation_proj != building_proj:
+    arcpy.AddMessage("Matching input projections before clip..")
+    excavation_polys_matched = output_folder + os.sep + "exc_match.shp"
+    arcpy.Project_management(excavation_polys_fl, excavation_polys_matched, building_proj)
+    excavation_polys_fl = excavation_polys_matched
 
 ################ GET EXCAVATION INFO #####################
 excavation_outline_as_json = Utils_arcpy.getConstructionAsJson(excavation_polys_fl)
-buildingsClipExtent = Utils_arcpy.getBuildingsClipExtentFromConstruction(excavation_outline_as_json, CALCULATION_RANGE, working_proj, logger)
+buildingsClipExtent = Utils_arcpy.getBuildingsClipExtentFromConstruction(excavation_outline_as_json, CALCULATION_RANGE, building_proj, logger)
 
 ################ EXTRACTING BUILDINGS ##################
 buildings_clip = output_folder + os.sep + "buildings_clip.shp"
@@ -145,19 +145,46 @@ logger.debug("TIME - Starting extraction of buildings")
 Utils_arcpy.extractBuildingsFromFL(building_polys_fl, buildingsClipExtent, buildings_clip, logger)
 logger.info("TIME - Done extraction of buildings.")
 
+#arcpy.SelectLayerByAttribute_management(building_polys_fl, "CLEAR_SELECTION")
+
+######  PROJECT BUILDING AND EXCAVATION TO OUTPUT  ########
+building_polys_projected = False
+excavation_polys_projected = False
+buildings_clip_projected = False
+
+if building_proj != output_proj:
+
+    arcpy.AddMessage("Projecting bulidings polygon..")
+    buildings_clip_projected = output_folder + os.sep + "buil_proj.shp"
+    arcpy.Project_management(buildings_clip, buildings_clip_projected, output_proj)
+    building_polys_fl = buildings_clip_projected
+
+    arcpy.AddMessage("Projecting excavation polygon..")
+    excavation_polys_projected = output_folder + os.sep + "exc_proj.shp"
+    arcpy.Project_management(excavation_polys_fl, excavation_polys_projected, output_proj)
+    excavation_polys_fl = excavation_polys_projected
+
+    excavation_outline_as_json = Utils_arcpy.getConstructionAsJson(excavation_polys_fl)
+
+else:
+    building_polys_fl = buildings_clip
+
+
+
 ############### HANDELING OF INPUT RASTER ################
 
+dtb_proj_raster = False
 if bLongterm:
     # If necessary, projects raster to the working projection
     raster_desc = arcpy.Describe(dtb_raster)
     dtb_raster_proj = raster_desc.SpatialReference.PCSCode
-    if (str(dtb_raster_proj) != str(working_proj)):
+    if (str(dtb_raster_proj) != str(output_proj)):
         logger.info("START raster projection")
-        arcpy.AddMessage("Projecting raster...")
+        arcpy.AddMessage("Projecting bedrock raster...")
         dtb_proj_raster = "temp_raster"
         if os.path.exists(dtb_proj_raster):
             os.remove(dtb_proj_raster)
-        arcpy.ProjectRaster_management(dtb_raster, dtb_proj_raster, working_proj)
+        arcpy.ProjectRaster_management(dtb_raster, dtb_proj_raster, output_proj)
         dtb_raster = dtb_proj_raster
     logger.info("DONE raster projection")
 
@@ -165,7 +192,7 @@ if bLongterm:
     raster_desc = arcpy.Describe(dtb_raster)
     if raster_desc.extension != ".tif":
         logger.info("START raster to TIFF conversion")
-        arcpy.AddMessage("Converting raster...")
+        arcpy.AddMessage("Converting bedrock raster...")
         dtb_raster_tiff = output_folder + os.sep + raster_desc.name + ".tif"
         #Delete existing rasters with the same name
         if os.path.exists(dtb_raster_tiff):
@@ -181,11 +208,10 @@ arcpy.AddMessage("Running mainBegrensSkade_Excavation...")
 try:
     outputFiles = BegrensSkade.mainBegrensSkade_Excavation(
         logger,
-        buildings_clip,
+        building_polys_fl,
         excavation_outline_as_json,
         output_folder,
         feature_name,
-        working_proj,
         output_proj,
         bShortterm,
         excavation_depth=excavation_depth,
@@ -213,6 +239,19 @@ except Exception:
     arcpy.AddError(sys.exc_info()[1])
     sys.exit()
 
+if dtb_proj_raster:
+    try:
+        arcpy.Delete_management(output_folder + os.sep + dtb_proj_raster + ".tif")
+    except:
+        arcpy.AddWarning("Failed to delete temporary bedrock raster!")
+
+arcpy.Delete_management(buildings_clip)
+if excavation_polys_matched:
+    arcpy.Delete_management(excavation_polys_matched)
+if building_polys_projected:
+    arcpy.Delete_management(building_polys_projected)
+if buildings_clip_projected:
+    arcpy.Delete_management(buildings_clip_projected)
 if excavation_polys_projected:
     arcpy.Delete_management(excavation_polys_projected)
 
@@ -220,8 +259,6 @@ if excavation_polys_projected:
 buildings_Shapefile_result = outputFiles[0]
 walls_Shapefile_result = outputFiles[1]
 corners_Shapefile_result = outputFiles[2]
-
-arcpy.SelectLayerByAttribute_management(building_polys_fl, "CLEAR_SELECTION")
 
 arcpy.AddMessage("Adding symbology layer to map...")
 p = arcpy.mp.ArcGISProject("CURRENT")
@@ -235,7 +272,7 @@ addImpactSettl = Utils.setBooleanParameter(arcpy.GetParameter(27))
 addWalls = Utils.setBooleanParameter(arcpy.GetParameter(28))
 addCorners = Utils.setBooleanParameter(arcpy.GetParameter(29))
 
-lyr_corners = lyr_path + os.sep + "CORNER_SV_mm.lyrx"
+lyr_corners = lyr_path + os.sep + "CORNER_SV.lyrx"
 lyr_walls = lyr_path + os.sep + "WALL_ANGLE.lyrx"
 lyr_building_sv_max = lyr_path + os.sep + "BUILDING_TOTAL_SV_MAX_mm.lyrx"
 lyr_building_a_max = lyr_path + os.sep + "BUILDING_TOTAL_ANGLE_MAX.lyrx"
@@ -250,15 +287,18 @@ if addCorners:
     Utils_arcpy.addLayerToGroup(pMap, corners_Shapefile_result, lyr_corners, lyr_group)
 if addWalls:
     Utils_arcpy.addLayerToGroup(pMap, walls_Shapefile_result, lyr_walls, lyr_group)
-if addImpactSettl:
-    Utils_arcpy.addLayerToGroup(pMap, buildings_Shapefile_result, lyr_building_sv_max, lyr_group)
-if addImpactAngle:
-    Utils_arcpy.addLayerToGroup(pMap, buildings_Shapefile_result, lyr_building_a_max, lyr_group)
 if bVulnerability:
-    if addRiskSettl:
-        Utils_arcpy.addLayerToGroup(pMap, buildings_Shapefile_result, lyr_building_risk_sv, lyr_group)
     if addRiskAngle:
         Utils_arcpy.addLayerToGroup(pMap, buildings_Shapefile_result, lyr_building_risk_a,lyr_group)
+    if addRiskSettl:
+        Utils_arcpy.addLayerToGroup(pMap, buildings_Shapefile_result, lyr_building_risk_sv, lyr_group)
+if addImpactAngle:
+    Utils_arcpy.addLayerToGroup(pMap, buildings_Shapefile_result, lyr_building_a_max, lyr_group)
+if addImpactSettl:
+    Utils_arcpy.addLayerToGroup(pMap, buildings_Shapefile_result, lyr_building_sv_max, lyr_group)
+
+#arcpy.SelectLayerByAttribute_management(buildings_Shapefile_result, "CLEAR_SELECTION")
+
 
 logger.info("------------------------------DONE-------------------------------")
 

@@ -33,9 +33,9 @@ def addLayer(pMap, dataPath, lyrPath, name=""):
         if name != "":
             newLay.name = name
         return newLay
-    except:
-        arcpy.AddError("Error in addLayer()")
-        sys.exit()
+    except Exception:
+        arcpy.AddError("Error in addLayer()\n")
+        arcpy.AddError(sys.exc_info()[1])
         raise
 
 
@@ -54,8 +54,8 @@ def addLayerToGroup(pMap, dataPath, lyrPath, targetGroupLayer, name=""):
         pMap.addLayerToGroup(targetGroupLayer, newLay)
         pMap.removeLayer(newLay)
     except:
-        arcpy.AddError("Error in addLayerToGroup()")
-        sys.exit()
+        arcpy.AddError("Error in addLayerToGroup()\n")
+        arcpy.AddError(sys.exc_info()[1])
         raise
 
 def getProjCodeFromFC(fc):
