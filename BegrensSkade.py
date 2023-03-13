@@ -475,10 +475,11 @@ def mainBegrensSkade_ImpactMap(
 
     # "Loading construction zone to memory..."
 
-    logger.debug("Calling get_construction_corners_from_ArcGIS_json with json: {}".format(excavationJson))
+    logger.debug("Get construction corners from json")
+    #logger.debug("Calling get_construction_corners_from_ArcGIS_json with json: {}".format(excavationJson))
     construction_area_corners = BegrensSkadeLib.get_construction_corners_from_ArcGIS_json(excavationJson, CONSTR_RESAMPLE_LEN, logger)
 
-    logger.info("START calculate settlements")
+    logger.info("START calculate settlements - iterating raster pixels")
 
     dataset = gdal.Open(str(dtb_raster))
     band = dataset.GetRasterBand(1)
@@ -497,20 +498,11 @@ def mainBegrensSkade_ImpactMap(
     min_near_dist = 9999
     max_sv_long = 0
 
-    logger.info(
-        "xOrigin, yOrigin, rows, cols, pixelWidht, pixelHeight: "
-        + str(xOrigin)
-        + ", "
-        + str(yOrigin)
-        + ", "
-        + str(rows)
-        + ", "
-        + str(cols)
-        + ", "
-        + str(pixelWidth)
-        + ", "
-        + str(pixelHeight)
-    )
+    tot_px = rows*cols
+    px = 0
+    progress = 0
+
+    #logger.info("xOrigin, yOrigin, rows, cols, pixelWidht, pixelHeight: "+ str(xOrigin)+ ", "+ str(yOrigin)+ ", "+ str(rows)+ ", "+ str(cols)+ ", "+ str(pixelWidth)+ ", "+ str(pixelHeight))
 
     for row in range(0, rows):
         for col in range(0, cols):
@@ -518,6 +510,11 @@ def mainBegrensSkade_ImpactMap(
             y = yOrigin - row * pixelHeight
             near_dist_sqr = BegrensSkadeLib.near_analysis_sqr(x, y, construction_area_corners)
             if near_dist_sqr > CALCULATION_RANGE**2:
+                px += 1
+                new_progress = int(100 * px / tot_px)
+                if new_progress > progress:
+                    progress = new_progress
+                    logger.info("Progress: " + str(progress) + " %")
                 continue
             dtb = inData[row][col]
             near_dist = np.sqrt(near_dist_sqr)
@@ -529,7 +526,6 @@ def mainBegrensSkade_ImpactMap(
 
             else:
                 # Evaluating Janbu long term settlements
-
                 # Lav poretrykksreduksjon
                 # Middels poretrykksreduksjon
                 # Høy poretrykksreduksjon
@@ -555,20 +551,9 @@ def mainBegrensSkade_ImpactMap(
                     janbu_m,
                     consolidation_time,
                 )
-                if count_clay < 50:
-                    logger.info(
-                        "row, col, SV_LONG, near_dist, dtb: "
-                        + str(row)
-                        + ","
-                        + str(col)
-                        + ","
-                        + str(sv_long)
-                        + ", "
-                        + str(near_dist)
-                        + ", "
-                        + str(dtb)
-                    )
-                    count_clay += 1
+                #if count_clay < 50:
+                #    logger.info( "row, col, SV_LONG, near_dist, dtb: "+ str(row)+ ","+ str(col)+ ","+ str(sv_long)+ ", "+ str(near_dist)+ ", "+ str(dtb))
+                count_clay += 1
                 max_sv_long = max(max_sv_long, sv_long)
 
             if bShortterm:
@@ -600,27 +585,17 @@ def mainBegrensSkade_ImpactMap(
                 sv_short = 0.0
 
             outData[row, col] = sv_short + sv_long
+            px += 1
+            new_progress = int(100*px/tot_px)
+            if  new_progress > progress:
+                progress = new_progress
+                logger.info("Progress: " + str(progress) + " %")
 
-    logger.info("COUNT_CRUST: " + str(count_crust))
-    logger.info("COUNT_CLAY: " + str(count_clay))
-    logger.info("MIN NEAR DIST: " + str(min_near_dist))
-    logger.info("MAX SV LONG: " + str(max_sv_long))
-
-    count = 0
-
-    for row in range(0, rows):
-        for col in range(0, cols):
-            if row in [8, 9, 10] and col in [30, 31, 32, 33, 34, 35]:
-                logger.info(
-                    "row, col: "
-                    + str(row)
-                    + ", "
-                    + str(col)
-                    + ": "
-                    + str(outData[row, col])
-                )
-                count += 1
-
+    logger.info("Px, tot px: " + str(px) + ", " + str(tot_px))
+    logger.info("Count crust: " + str(count_crust))
+    logger.info("Count clay: " + str(count_clay))
+    logger.info("Min near dist: " + str(min_near_dist))
+    logger.info("Max near dist: " + str(max_sv_long))
     logger.info("STOP calculating settlements")
     logger.info("START writing results")
 

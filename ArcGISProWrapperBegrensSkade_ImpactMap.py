@@ -35,13 +35,14 @@ if not len(logger.handlers):
     logger.setLevel(logging.DEBUG)
 ############################################################
 
-
 ##############  READ PARAMETERS ############################
 excavation_polys_fl = arcpy.GetParameter(0)
 output_folder = arcpy.GetParameterAsText(1)
 output_name = arcpy.GetParameterAsText(2)
 output_resolution = arcpy.GetParameterAsText(3)
 coord_syst = arcpy.GetParameterAsText(4)
+
+logger.info("------------------------------NEW RUN: " + str(output_name)+"-------------------------------")
 
 sr = arcpy.SpatialReference()
 sr.loadFromString(coord_syst)
@@ -99,10 +100,9 @@ if (str(dtb_raster_proj) != str(output_proj)):
         os.remove(dtb_proj_raster)
     arcpy.ProjectRaster_management(dtb_raster, dtb_proj_raster, output_proj)
     dtb_raster = dtb_proj_raster
-logger.info("DONE raster projection")
+    logger.info("DONE raster projection")
 
 #Checks if raster area and requested resolution is too demanding and if clipping is necessary
-logger.debug("START raster clipping")
 for row in arcpy.da.SearchCursor(excavation_polys_fl, ['SHAPE@']):
     extent = row[0].extent
 xmin = extent.XMin - CALCULATION_RANGE
@@ -113,11 +113,12 @@ extent_str = str(xmin)+ " " + str(ymin) + " " + str(xmax) + " " + str(ymax)
 area = abs(ymax-ymin)*abs(xmax-xmin)
 dtb_clip_raster = False
 if float(output_resolution)/area < 10/820000:
+    logger.debug("START raster clipping")
     arcpy.AddWarning("High output resolution and/or large raster - clipping raster!")
     dtb_clip_raster = "clip_raster"
     arcpy.management.Clip(dtb_raster, extent_str, dtb_clip_raster)
     dtb_raster = dtb_clip_raster
-logger.debug("DONE raster clipping")
+    logger.debug("DONE raster clipping")
 
 #Resampels raster to the specified resolution
 dtb_raster_resample = "resampl_raster"
@@ -128,7 +129,7 @@ dtb_raster = dtb_raster_resample
 logger.debug("DONE raster resampling")
 n_cols = arcpy.management.GetRasterProperties(dtb_raster, "COLUMNCOUNT")
 n_rows = arcpy.management.GetRasterProperties(dtb_raster, "ROWCOUNT")
-logger.info("Dtb raster cols and rows after resampling: " + str(n_cols) + ", " + str(n_rows) + "\n")
+logger.info("Dtb raster cols and rows after resampling: " + str(n_cols) + ", " + str(n_rows) )
 
 #Create a tif file from the raster. Necessary for input to GDAL.
 raster_desc = arcpy.Describe(dtb_raster)
@@ -219,5 +220,5 @@ pMap = p.activeMap
 lyr_impactmap = lyr_path + os.sep + "SETTLEMENT_IMPACT_FIELD.lyrx"
 result_lyr = Utils_arcpy.addLayer(pMap, result_raster, lyr_impactmap, output_name)
 
-logger.info("------------------------------DONE-------------------------------")
+logger.info("------------------------------DONE-------------------------------\n ")
 
