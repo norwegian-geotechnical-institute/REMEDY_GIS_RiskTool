@@ -72,10 +72,9 @@ def getConstructionAsJson(uploaded_construction_outline):
                 bounding_as_json = geom.JSON
                 return json.loads(bounding_as_json)
 
-def getBuildingsClipExtentFromConstruction(constructionJson, margin, working_proj, logger):
+def getBuildingsClipExtentFromConstruction(constructionJson, margin, spatial_ref, logger):
     logger.debug("constructionJson: {}".format(constructionJson))
     construction_area_corners = BegrensSkadeLib.get_construction_corners_from_ArcGIS_json(constructionJson, 2, logger)
-    sr = arcpy.SpatialReference(working_proj)
     minx = 99999999
     miny = 99999999
     maxx = -99999999
@@ -96,7 +95,7 @@ def getBuildingsClipExtentFromConstruction(constructionJson, margin, working_pro
     ur = arcpy.Point(maxx + margin, maxy + margin)
     lr = arcpy.Point(maxx + margin, miny - margin)
 
-    rectangle = arcpy.Polygon(arcpy.Array([ll, ul, ur, lr, ll]), sr)
+    rectangle = arcpy.Polygon(arcpy.Array([ll, ul, ur, lr, ll]), spatial_ref)
 
     logger.debug("Rectangle: {}".format(rectangle.extent.JSON))
     return rectangle

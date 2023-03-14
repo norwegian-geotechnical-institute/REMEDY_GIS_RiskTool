@@ -42,9 +42,9 @@ output_folder = arcpy.GetParameterAsText(2)
 feature_name = arcpy.GetParameterAsText(3)
 coord_syst = arcpy.GetParameterAsText(4)
 
-sr = arcpy.SpatialReference()
-sr.loadFromString(coord_syst)
-output_proj = sr.PCSCode
+output_spatial_ref = arcpy.SpatialReference()
+output_spatial_ref.loadFromString(coord_syst)
+output_proj = output_spatial_ref.PCSCode
 
 corner_name = feature_name + "_CORNER"
 wall_name = feature_name + "_WALL"
@@ -130,20 +130,20 @@ else:
     status_field = None
 
 ##############  GET INPUT PROJECTIONS ###########################
-building_proj = Utils_arcpy.getProjCodeFromFC(building_polys_fl)
-tunnel_proj = Utils_arcpy.getProjCodeFromFC(tunnel_poly_fl)
+building_spatial_ref = arcpy.Describe(building_polys_fl).spatialReference
+tunnel_spatial_ref = arcpy.Describe(tunnel_poly_fl).spatialReference
 
 ########  GET EXCAVATION AND BUILDINGS ON SAME PROJECTION ###########
 tunnel_poly_matched = False
-if tunnel_proj != building_proj:
+if tunnel_spatial_ref != building_spatial_ref:
     arcpy.AddMessage("Matching input projections before clip..")
     tunnel_poly_matched = output_folder + os.sep + "tun_match.shp"
-    arcpy.Project_management(tunnel_poly_fl, tunnel_poly_matched, building_proj)
+    arcpy.Project_management(tunnel_poly_fl, tunnel_poly_matched, building_spatial_ref)
     tunnel_poly_fl = tunnel_poly_matched
 
 ################ GET TUNNEL INFO #####################
 tunnel_outline_as_json = Utils_arcpy.getConstructionAsJson(tunnel_poly_fl)
-buildingsClipExtent = Utils_arcpy.getBuildingsClipExtentFromConstruction(tunnel_outline_as_json, CALCULATION_RANGE, building_proj, logger)
+buildingsClipExtent = Utils_arcpy.getBuildingsClipExtentFromConstruction(tunnel_outline_as_json, CALCULATION_RANGE, building_spatial_ref, logger)
 
 ################ EXTRACTING BUILDINGS ##################
 buildings_clip = output_folder + os.sep + "buildings_clip.shp"
@@ -158,7 +158,7 @@ building_polys_projected = False
 tunnel_poly_projected = False
 buildings_clip_projected = False
 
-if building_proj != output_proj:
+if building_spatial_ref != output_spatial_ref:
 
     arcpy.AddMessage("Projecting bulidings polygon..")
     buildings_clip_projected = output_folder + os.sep + "buil_proj.shp"
