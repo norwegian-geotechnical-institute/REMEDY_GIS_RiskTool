@@ -514,11 +514,15 @@ def mainBegrensSkade_ImpactMap(
                 new_progress = int(100 * px / tot_px)
                 if new_progress > progress:
                     progress = new_progress
-                    logger.info("Progress: " + str(progress) + " %")
+                    logger.info("Progress: " + str(progress) + " %. Outside.")
                 continue
             dtb = inData[row][col]
+
+            if dtb > 500 or dtb < -5:
+                logger.info("DTB outside range")
+                continue
             near_dist = np.sqrt(near_dist_sqr)
-            min_near_dist = min(min_near_dist, np.sqrt(near_dist))
+            min_near_dist = min(min_near_dist, near_dist)
 
             if dtb <= dry_crust_thk:
                 sv_long = 0.0
@@ -539,18 +543,22 @@ def mainBegrensSkade_ImpactMap(
 
                 porewp_red_atdist = porewp_red * longterm_porewr
 
-                sv_long, red_adj = BegrensSkadeLib.get_sv_long_janbu(
-                    dtb,
-                    dry_crust_thk,
-                    dep_groundwater,
-                    density_sat,
-                    OCR,
-                    porewp_red_atdist,
-                    janbu_ref_stress,
-                    janbu_const,
-                    janbu_m,
-                    consolidation_time,
-                )
+                if porewp_red_atdist > 0:
+                    sv_long, red_adj = BegrensSkadeLib.get_sv_long_janbu(
+                        dtb,
+                        dry_crust_thk,
+                        dep_groundwater,
+                        density_sat,
+                        OCR,
+                        porewp_red_atdist,
+                        janbu_ref_stress,
+                        janbu_const,
+                        janbu_m,
+                        consolidation_time,
+                    )
+                else:
+                    sv_long = 0
+
                 #if count_clay < 50:
                 #    logger.info( "row, col, SV_LONG, near_dist, dtb: "+ str(row)+ ","+ str(col)+ ","+ str(sv_long)+ ", "+ str(near_dist)+ ", "+ str(dtb))
                 count_clay += 1
