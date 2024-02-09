@@ -621,18 +621,10 @@ def mainBegrensSkade_ImpactMap(
     outBand.WriteArray(outData, 0, 0)
     outBand.SetNoDataValue(-99)
 
-    # georeference the image and set the projection
+    # Set the geotransform and projection from the input raster because the input
+    # is already in the correct projection
     outDs.SetGeoTransform(dataset.GetGeoTransform())
-    #outDs.SetProjection(dataset.GetProjection())
-
-    projections = Utils.getProjections()
-
-    output_def_desc = projections.get(str(output_proj))
-    if not output_def_desc:
-        raise Exception(f"SRID: {output_proj} is not supported")
-    output_definition = output_def_desc["definition"]["data"]
-
-    outDs.SetProjection(output_definition)
+    outDs.SetProjection(dataset.GetProjection())
     outDs.FlushCache()
 
     del outData
