@@ -1,7 +1,6 @@
 coding_guide = 0 #avoids some sort of coding interpretation bugs
 # Prepared for open source release July 2022
 
-log_path = r'C:\Users\AOL\Documents\ArcGIS\BegrensSkadeCode\log'
 lyr_path = r'C:\Users\AOL\Documents\ArcGIS\BegrensSkadeCode\lyr'
 
 import arcpy
@@ -9,7 +8,7 @@ import sys
 import os
 import traceback
 import logging.handlers
-sys.path.append(log_path)
+
 import importlib
 import Utils
 import Utils_arcpy
@@ -22,7 +21,16 @@ importlib.reload(BegrensSkadeLib)
 
 CALCULATION_RANGE = 380
 
+##############  READ PARAMETERS ############################
+building_polys_fl = arcpy.GetParameter(0)
+tunnel_poly_fl = arcpy.GetParameter(1)
+output_folder = arcpy.GetParameterAsText(2)
+feature_name = arcpy.GetParameterAsText(3)
+coord_syst = arcpy.GetParameterAsText(4)
+
 ##############  SETUP LOGGERS ##############################
+log_path = output_folder
+sys.path.append(log_path)
 maxLoggerFileSize = 2 * 1024 * 1024
 logger = logging.getLogger("BegrensSkade_TUNNEL")
 if not len(logger.handlers):
@@ -33,14 +41,6 @@ if not len(logger.handlers):
     logger.addHandler(hdlr)
     logger.setLevel(logging.DEBUG)
 ############################################################(
-
-
-##############  READ PARAMETERS ############################
-building_polys_fl = arcpy.GetParameter(0)
-tunnel_poly_fl = arcpy.GetParameter(1)
-output_folder = arcpy.GetParameterAsText(2)
-feature_name = arcpy.GetParameterAsText(3)
-coord_syst = arcpy.GetParameterAsText(4)
 
 output_spatial_ref = arcpy.SpatialReference()
 output_spatial_ref.loadFromString(coord_syst)
@@ -70,7 +70,7 @@ if bShortterm == False and bLongterm == False:
 if bLongterm:
     porewp_calc_type = arcpy.GetParameterAsText(11)
     tunnel_leakage = arcpy.GetParameter(12)  # Q
-    porewp_red_at_site = arcpy.GetParameter(13)
+    porewp_red_at_site_m = arcpy.GetParameter(13)
     dtb_raster = arcpy.GetParameter(14)
     dry_crust_thk = arcpy.GetParameter(15)
     dep_groundwater = arcpy.GetParameter(16)
@@ -82,7 +82,7 @@ if bLongterm:
     consolidation_time = arcpy.GetParameter(22)
 else:
     porewp_calc_type = None
-    porewp_red_at_site = None
+    porewp_red_at_site_m = None
     tunnel_leakage = None
     dtb_raster = None
     dry_crust_thk = None
@@ -226,7 +226,7 @@ try:
         bLongterm=bLongterm,
         porewp_calc_type=porewp_calc_type,
         tunnel_leakage=tunnel_leakage,
-        porewp_red_at_site=porewp_red_at_site,
+        porewp_red_at_site_m=porewp_red_at_site_m,
         dtb_raster=dtb_raster_str,
         dry_crust_thk=dry_crust_thk,
         dep_groundwater=dep_groundwater,
@@ -287,24 +287,30 @@ lyr_building_sv_max = lyr_path + os.sep + "BUILDING_TOTAL_SV_MAX_mm.lyrx"
 lyr_building_a_max = lyr_path + os.sep + "BUILDING_TOTAL_ANGLE_MAX.lyrx"
 lyr_building_risk_sv = lyr_path + os.sep + "BUILDING_RISK_SV_gdal.lyrx"
 lyr_building_risk_a = lyr_path + os.sep + "BUILDING_RISK_ANGLE_gdal.lyrx"
-lyr_group = lyr_path + os.sep + "GIBV_RUN_.lyrx"
+lyr_group = lyr_path + os.sep + "GIBV_RUN.lyrx"
 
 lyr_group = pMap.addLayer(arcpy.mp.LayerFile(lyr_group), "TOP")[0]
 lyr_group.name = feature_name
 
-if addCorners:
-    Utils_arcpy.addLayerToGroup(pMap, corners_Shapefile_result, lyr_corners, lyr_group)
-if addWalls:
-    Utils_arcpy.addLayerToGroup(pMap, walls_Shapefile_result, lyr_walls, lyr_group)
-if bVulnerability:
-    if addRiskAngle:
-        Utils_arcpy.addLayerToGroup(pMap, buildings_Shapefile_result, lyr_building_risk_a, lyr_group)
-    if addRiskSettl:
-        Utils_arcpy.addLayerToGroup(pMap, buildings_Shapefile_result, lyr_building_risk_sv, lyr_group)
-if addImpactAngle:
-    Utils_arcpy.addLayerToGroup(pMap, buildings_Shapefile_result, lyr_building_a_max, lyr_group)
 if addImpactSettl:
-    Utils_arcpy.addLayerToGroup(pMap, buildings_Shapefile_result, lyr_building_sv_max, lyr_group)
+    Utils_arcpy.addLayerToGroup(pMap, buildings_Shapefile_result, lyr_building_sv_max, lyr_group,
+                                name="Maximum settlement each building experience")
+if addImpactAngle:
+    Utils_arcpy.addLayerToGroup(pMap, buildings_Shapefile_result, lyr_building_a_max, lyr_group,
+                                name="Maximum tilt each building experience")
+if bVulnerability:
+    if addRiskSettl:
+        Utils_arcpy.addLayerToGroup(pMap, buildings_Shapefile_result, lyr_building_risk_sv, lyr_group,
+                                    name="Building risk category based on settlement damage")
+    if addRiskAngle:
+        Utils_arcpy.addLayerToGroup(pMap, buildings_Shapefile_result, lyr_building_risk_a, lyr_group,
+                                    name="Building risk category based on tilt damage")
+if addWalls:
+    Utils_arcpy.addLayerToGroup(pMap, walls_Shapefile_result, lyr_walls, lyr_group,
+                                name="Tilt on building walls")
+if addCorners:
+    Utils_arcpy.addLayerToGroup(pMap, corners_Shapefile_result, lyr_corners, lyr_group,
+                                name="Settlement on building corners")
 
 #arcpy.SelectLayerByAttribute_management(buildings_Shapefile_result, "CLEAR_SELECTION")
 

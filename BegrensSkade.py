@@ -19,16 +19,15 @@ def mainBegrensSkade_Excavation(
     feature_name, #Name of the result shapefiles
     output_proj, #PCSC Code of the Coordinate system for result shapefiles, refer to Utils.epsgMapping{}
     bShortterm, #Boolean flag for short term settlement calculations
-    excavation_depth="", #Depth of excavation, necessary for short term calculation
+    excavation_depth=10, #Depth of excavation, necessary for short term calculation
     short_term_curve="1 % av byggegropdybde", #Short term settlement curve, refer to manual for options
     bLongterm=False, #Bolean flag for long term settlement calculations
     dtb_raster="", #Depth to bedrock tiff raster for long term settlement (path string)
-    pw_reduction_curve="Middels poretrykksreduksjon", #Porewater reduction curve for long term settlement, refer to manual for options
+    porewp_red_m=10, #Reduction of porewater pressure close to excavation in meters
     dry_crust_thk=5, #Thickness of overburden not affected by porewater drawdown
     dep_groundwater=3, #Depht to groundwater table
     density_sat=18.5, #Soil saturation density
     OCR=1.2, #Over consolidation ratio
-    porewp_red=50, #Reduction of porewater pressure close to excavation
     janbu_ref_stress=0, #Janbu reference stress
     janbu_const=4, #Janbu constant, refer to manual
     janbu_m=15, #Janbu compression modulus
@@ -53,12 +52,11 @@ def mainBegrensSkade_Excavation(
     parameter_log.write("Long term enabled: " + str(bLongterm) + "\n")
     if bLongterm:
         parameter_log.write("Dtb raster: " + str(dtb_raster) + "\n")
-        parameter_log.write("Pore water pressure reduction curve: " + str(pw_reduction_curve) + "\n")
         parameter_log.write("Depth unaffected pore water pressure (\"dry crust\"): " + str(dry_crust_thk) + "\n")
         parameter_log.write("Depth groundwater table: " + str(dep_groundwater)+"\n")
         parameter_log.write("Density: " + str(density_sat) +"\n")
         parameter_log.write("OCR: " +str(OCR)+ "\n")
-        parameter_log.write("Porewater pressure reduction: " + str(porewp_red)+"\n")
+        parameter_log.write("Porewater pressure reduction (m): " + str(porewp_red_m)+"\n")
         parameter_log.write("Janbu reference stress: " +str(janbu_ref_stress)+ "\n")
         parameter_log.write("Janbu constant: " + str(janbu_const)+ "\n")
         parameter_log.write("Janbu m: " + str(janbu_m)+  "\n")
@@ -222,21 +220,9 @@ def mainBegrensSkade_Excavation(
 
             if bLongterm:
 
-                # Lav poretrykksreduksjon
-                # Middels poretrykksreduksjon
-                # Høy poretrykksreduksjon
+                #Oct 2024: New method for porewater pressure reduction calculation (DOI 10.1061/JGGEFK/GTENG-12490)
 
-                if pw_reduction_curve in ["Minimum", "Lav poretrykksreduksjon"]:
-                    longterm_porewr = BegrensSkadeLib.get_longterm_porewr_min(near_dist)
-                elif pw_reduction_curve in ["Mean", "Middels poretrykksreduksjon"]:
-                    longterm_porewr = BegrensSkadeLib.get_longterm_porewr_mean(near_dist)
-                elif pw_reduction_curve in ["Maximum", "Høy poretrykksreduksjon"]:
-                    longterm_porewr = BegrensSkadeLib.get_longterm_porewr_max(near_dist)
-                else:
-                    logger.error(f"Not a valid porewater reduction: {pw_reduction_curve}")
-                    raise Exception("Not a valid porewater reduction")
-
-                porewp_red_atdist = porewp_red * longterm_porewr
+                porewp_red_atdist = 10*max((porewp_red_m - near_dist/50), 0) #pore water pressure reduction in kPa
 
                 sv_long, red_adj = BegrensSkadeLib.get_sv_long_janbu(
                     corner.dtb,
@@ -244,7 +230,7 @@ def mainBegrensSkade_Excavation(
                     dep_groundwater,
                     density_sat,
                     OCR,
-                    porewp_red_atdist,
+                    porewp_red_atdist, #pore water pressure reduction in kPa
                     janbu_ref_stress,
                     janbu_const,
                     janbu_m,
@@ -384,14 +370,19 @@ def mainBegrensSkade_Excavation(
     corner_name = feature_name + date_time_str + "_C"
     wall_name = feature_name + date_time_str + "_W"
     building_name = feature_name + date_time_str + "_B"
-    if bShortterm:
+    if bShortterm and bLongterm:
+        corner_name += "_SL"
+        wall_name += "_SL"
+        building_name += "_SL"
+    elif bLongterm:
+        corner_name += "_L"
+        wall_name += "_L"
+        building_name += "_L"
+    elif bShortterm:
         corner_name += "_S"
         wall_name += "_S"
         building_name += "_S"
-    if bLongterm:
-        corner_name += "L"
-        wall_name += "L"
-        building_name += "L"
+
 
     logger.info("TIME - done calculating settlements")
 
@@ -431,7 +422,7 @@ def mainBegrensSkade_ImpactMap(
     CALCULATION_RANGE, #Range of longterm settlement calculation
     output_proj, #PCSC Code of the Coordinate system for result shapefiles, refer to Utils.epsgMapping{}
     dtb_raster="", #Depth to bedrock tiff raster for long term settlement (path string)
-    pw_reduction_curve="Middels poretrykksreduksjon", #Porewater reduction curve for long term settlement, refer to manual for options
+    porewp_red_m=10,  # Reduction of porewater pressure close to excavation in meters
     dry_crust_thk=5, #Thickness of overburden not affected by porewater drawdown
     dep_groundwater=3, #Depht to groundwater table
     density_sat=18.5, #Soil saturation density
@@ -459,12 +450,11 @@ def mainBegrensSkade_ImpactMap(
         parameter_log.write("Short term curve: "+ str(short_term_curve) + "\n")
     parameter_log.write("Long term enabled: True (default)\n")
     parameter_log.write("Dtb raster: " + str(dtb_raster) + "\n")
-    parameter_log.write("Pore water pressure reduction curve: " + str(pw_reduction_curve) + "\n")
     parameter_log.write("Depth unaffected pore water pressure (\"dry crust\"): " + str(dry_crust_thk) + "\n")
     parameter_log.write("Depth groundwater table: " + str(dep_groundwater)+"\n")
     parameter_log.write("Density: " + str(density_sat) +"\n")
     parameter_log.write("OCR: " +str(OCR)+ "\n")
-    parameter_log.write("Porewater pressure reduction: " + str(porewp_red)+"\n")
+    parameter_log.write("Porewater pressure reduction (m): " + str(porewp_red_m)+"\n")
     parameter_log.write("Janbu reference stress: " +str(janbu_ref_stress)+ "\n")
     parameter_log.write("Janbu constant: " + str(janbu_const)+ "\n")
     parameter_log.write("Janbu m: " + str(janbu_m)+  "\n")
@@ -479,7 +469,7 @@ def mainBegrensSkade_ImpactMap(
     #logger.debug("Calling get_construction_corners_from_ArcGIS_json with json: {}".format(excavationJson))
     construction_area_corners = BegrensSkadeLib.get_construction_corners_from_ArcGIS_json(excavationJson, CONSTR_RESAMPLE_LEN, logger)
 
-    logger.info("START calculate settlements - iterating raster pixels")
+    logger.info("START calculate settlements")
 
     dataset = gdal.Open(str(dtb_raster))
     band = dataset.GetRasterBand(1)
@@ -530,18 +520,10 @@ def mainBegrensSkade_ImpactMap(
 
             else:
                 # Evaluating Janbu long term settlements
-                # Lav poretrykksreduksjon
-                # Middels poretrykksreduksjon
-                # Høy poretrykksreduksjon
 
-                if pw_reduction_curve in ["Minimum", "Lav poretrykksreduksjon"]:
-                    longterm_porewr = BegrensSkadeLib.get_longterm_porewr_min(near_dist)
-                elif pw_reduction_curve in ["Mean", "Middels poretrykksreduksjon"]:
-                    longterm_porewr = BegrensSkadeLib.get_longterm_porewr_mean(near_dist)
-                else:
-                    longterm_porewr = BegrensSkadeLib.get_longterm_porewr_max(near_dist)
+                #Oct 2024: New method for porewater pressure reduction calculation (DOI 10.1061/JGGEFK/GTENG-12490)
 
-                porewp_red_atdist = porewp_red * longterm_porewr
+                porewp_red_atdist = 10*max((porewp_red_m - near_dist/50), 0) #pore water pressure reduction in meters
 
                 if porewp_red_atdist > 0:
                     sv_long, red_adj = BegrensSkadeLib.get_sv_long_janbu(
@@ -657,7 +639,7 @@ def mainBegrensSkade_Tunnel(
     bLongterm=False, #Boolean flag for long term settlements
     tunnel_leakage="", #Leakage rate for long term settlement calculation
     porewp_calc_type="Mean", #Type of porewater reduction calculation, refer to manual
-    porewp_red_at_site=0, #Porewater reduction at tunnel site, refer to manual
+    porewp_red_at_site_m=0, #Porewater reduction at tunnel site, refer to manual
     dtb_raster="", #Depth to bedrock tiff raster for long term settlement (path string)
     dry_crust_thk=5, #Thickness of overburden not affected by porewater drawdown
     dep_groundwater=3, #Depht to groundwater table
@@ -694,7 +676,7 @@ def mainBegrensSkade_Tunnel(
         parameter_log.write("Density: " + str(density_sat) +"\n")
         parameter_log.write("OCR: " +str(OCR)+ "\n")
         parameter_log.write("Porewater reduction calculation type: " + str(porewp_calc_type)+"\n")
-        parameter_log.write("Porewater pressure reduction at site: " + str(porewp_red_at_site) + "\n")
+        parameter_log.write("Porewater pressure reduction at site (m): " + str(porewp_red_at_site_m) + "\n")
         parameter_log.write("Janbu reference stress: " +str(janbu_ref_stress)+ "\n")
         parameter_log.write("Janbu constant: " + str(janbu_const)+ "\n")
         parameter_log.write("Janbu m: " + str(janbu_m)+  "\n")
@@ -755,7 +737,7 @@ def mainBegrensSkade_Tunnel(
         f"### mainBegrenSkade called with: \nbuildingsFN: {buildingsFN}, tunnelJson: {tunnelJson},output_ws: {output_ws}, "
         f"feature_name: {feature_name}, coord_syst: {output_proj}, bShortterm: {bShortterm}, "
         f"tunnel_depth: {tunnel_depth}, tunnel_diameter: {tunnel_diameter}, volume_loss: {volume_loss}, trough_width: {trough_width},  bLongterm: {bLongterm},"
-        f"tunnel_leakage: {tunnel_leakage}, porewp_calc_type: {porewp_calc_type}, porewp_red_at_site: {porewp_red_at_site}, dtb_raster: {dtb_raster}, "
+        f"tunnel_leakage: {tunnel_leakage}, porewp_calc_type: {porewp_calc_type}, porewp_red_at_site_m: {porewp_red_at_site_m}, dtb_raster: {dtb_raster}, "
         f"dry_crust_thk: {dry_crust_thk}, density_sat: {density_sat},OCR: {OCR}, janbu_ref_stress: {janbu_ref_stress}, janbu_const: {janbu_const}, "
         f"janbu_m: {janbu_m}, consolidation_time: {consolidation_time}, bVulnerability: {bVulnerability}, fieldNameFoundation: {fieldNameFoundation}, "
         f"fieldNameStructure: {fieldNameStructure}, fieldNameStatus: {fieldNameStatus}"
@@ -843,7 +825,7 @@ def mainBegrensSkade_Tunnel(
                 elif porewp_calc_type == "Nedre":
                     porewp_red_atdist = 10 * ((float(tunnel_leakage) - 1.61) / 1.59 - 0.02 * near_dist)
                 elif porewp_calc_type == "Manuell":
-                    porewp_red_atdist = porewp_red_at_site - 10 * (0.02 * near_dist)
+                    porewp_red_atdist = 10 * max((porewp_red_at_site_m - (0.02 * near_dist)), 0) # pore water pressure reduction in kPa
                 else:
                     raise Exception(
                         "Not valid parameter",

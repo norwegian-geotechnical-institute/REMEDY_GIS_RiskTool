@@ -1,7 +1,6 @@
 coding_guide = 0 #avoids some sort of coding interpretation bugs
 # Prepared for open source release August 2022
 
-log_path = r'C:\Users\AOL\Documents\ArcGIS\BegrensSkadeCode\log'
 lyr_path = r'C:\Users\AOL\Documents\ArcGIS\BegrensSkadeCode\lyr'
 
 import arcpy
@@ -9,12 +8,13 @@ import sys
 import os
 import traceback
 import logging.handlers
-sys.path.append(log_path)
+
 import importlib
 import Utils
 import Utils_arcpy
 import BegrensSkade
 import BegrensSkadeLib
+
 importlib.reload(Utils)
 importlib.reload(Utils_arcpy)
 importlib.reload(BegrensSkade)
@@ -22,7 +22,16 @@ importlib.reload(BegrensSkadeLib)
 
 CALCULATION_RANGE = 380
 
+##############  READ PARAMETERS ############################
+building_polys_fl = arcpy.GetParameter(0)
+excavation_polys_fl = arcpy.GetParameter(1)
+output_folder = arcpy.GetParameterAsText(2)
+feature_name = arcpy.GetParameterAsText(3)
+coord_syst = arcpy.GetParameterAsText(4)
+
 ##############  SETUP LOGGERS ##############################
+log_path = output_folder
+sys.path.append(log_path)
 maxLoggerFileSize = 2 * 1024 * 1024
 logger = logging.getLogger("BegrensSkade_EXCAVATION")
 if not len(logger.handlers):
@@ -33,14 +42,6 @@ if not len(logger.handlers):
     logger.addHandler(hdlr)
     logger.setLevel(logging.DEBUG)
 ############################################################
-
-
-##############  READ PARAMETERS ############################
-building_polys_fl = arcpy.GetParameter(0)
-excavation_polys_fl = arcpy.GetParameter(1)
-output_folder = arcpy.GetParameterAsText(2)
-feature_name = arcpy.GetParameterAsText(3)
-coord_syst = arcpy.GetParameterAsText(4)
 
 output_spatial_ref = arcpy.SpatialReference()
 output_spatial_ref.loadFromString(coord_syst)
@@ -65,16 +66,15 @@ if bShortterm == False and bLongterm == False:
 
 if bLongterm:
     dtb_raster = arcpy.GetParameter(9)
-    pw_reduction_curve = arcpy.GetParameterAsText(10)
-    porewp_red = arcpy.GetParameter(11)
-    dry_crust_thk = arcpy.GetParameter(12)
-    dep_groundwater = arcpy.GetParameter(13)
-    density_sat = arcpy.GetParameter(14)
-    OCR = arcpy.GetParameter(15)
-    janbu_ref_stress = arcpy.GetParameter(16)
-    janbu_const = arcpy.GetParameter(17)
-    janbu_m = arcpy.GetParameter(18)
-    consolidation_time = arcpy.GetParameter(19)
+    porewp_red_m = arcpy.GetParameter(10)
+    dry_crust_thk = arcpy.GetParameter(11)
+    dep_groundwater = arcpy.GetParameter(12)
+    density_sat = arcpy.GetParameter(13)
+    OCR = arcpy.GetParameter(14)
+    janbu_ref_stress = arcpy.GetParameter(15)
+    janbu_const = arcpy.GetParameter(16)
+    janbu_m = arcpy.GetParameter(17)
+    consolidation_time = arcpy.GetParameter(18)
 else:
     dtb_raster = None
     pw_reduction_curve = None
@@ -82,13 +82,13 @@ else:
     dep_groundwater = None
     density_sat = None
     OCR = None
-    porewp_red = None
+    porewp_red_m = None
     janbu_ref_stress = None
     janbu_const = None
     janbu_m = None
     consolidation_time = None
 
-bVulnerability = arcpy.GetParameter(20)
+bVulnerability = arcpy.GetParameter(19)
 if bVulnerability:
     fields = arcpy.ListFields(building_polys_fl)
     field_map = {}
@@ -97,17 +97,17 @@ if bVulnerability:
     vuln_idx_count = 0
 
     try:
-        foundation_field = field_map[arcpy.GetParameterAsText(21)]
+        foundation_field = field_map[arcpy.GetParameterAsText(20)]
         vuln_idx_count += 1
     except:
         foundation_field = None
     try:
-        structure_field = field_map[arcpy.GetParameterAsText(22)]
+        structure_field = field_map[arcpy.GetParameterAsText(21)]
         vuln_idx_count += 1
     except:
         structure_field = None
     try:
-        status_field = field_map[arcpy.GetParameterAsText(23)]
+        status_field = field_map[arcpy.GetParameterAsText(22)]
         vuln_idx_count += 1
     except:
         status_field = None
@@ -218,12 +218,11 @@ try:
         short_term_curve=short_term_curve,
         bLongterm=bLongterm,
         dtb_raster=dtb_raster_str,
-        pw_reduction_curve=pw_reduction_curve,
+        porewp_red_m=porewp_red_m,
         dry_crust_thk=dry_crust_thk,
         dep_groundwater=dep_groundwater,
         density_sat=density_sat,
         OCR=OCR,
-        porewp_red=porewp_red,
         janbu_ref_stress=janbu_ref_stress,
         janbu_const=janbu_const,
         janbu_m=janbu_m,
@@ -265,12 +264,12 @@ p = arcpy.mp.ArcGISProject("CURRENT")
 pMap = p.activeMap
 
 if bVulnerability:
-    addRiskAngle = Utils.setBooleanParameter(arcpy.GetParameter(24))
-    addRiskSettl = Utils.setBooleanParameter(arcpy.GetParameter(25))
-addImpactAngle = Utils.setBooleanParameter(arcpy.GetParameter(26))
-addImpactSettl = Utils.setBooleanParameter(arcpy.GetParameter(27))
-addWalls = Utils.setBooleanParameter(arcpy.GetParameter(28))
-addCorners = Utils.setBooleanParameter(arcpy.GetParameter(29))
+    addRiskAngle = Utils.setBooleanParameter(arcpy.GetParameter(23))
+    addRiskSettl = Utils.setBooleanParameter(arcpy.GetParameter(24))
+addImpactAngle = Utils.setBooleanParameter(arcpy.GetParameter(25))
+addImpactSettl = Utils.setBooleanParameter(arcpy.GetParameter(26))
+addWalls = Utils.setBooleanParameter(arcpy.GetParameter(27))
+addCorners = Utils.setBooleanParameter(arcpy.GetParameter(28))
 
 lyr_corners = lyr_path + os.sep + "CORNER_SV.lyrx"
 lyr_walls = lyr_path + os.sep + "WALL_ANGLE.lyrx"
@@ -278,29 +277,28 @@ lyr_building_sv_max = lyr_path + os.sep + "BUILDING_TOTAL_SV_MAX_mm.lyrx"
 lyr_building_a_max = lyr_path + os.sep + "BUILDING_TOTAL_ANGLE_MAX.lyrx"
 lyr_building_risk_sv = lyr_path + os.sep + "BUILDING_RISK_SV_gdal.lyrx"
 lyr_building_risk_a = lyr_path + os.sep + "BUILDING_RISK_ANGLE_gdal.lyrx"
-lyr_group = lyr_path + os.sep + "GIBV_RUN_.lyrx"
+lyr_group = lyr_path + os.sep + "GIBV_RUN.lyrx"
 
 lyr_group = pMap.addLayer(arcpy.mp.LayerFile(lyr_group), "TOP")[0]
 lyr_group.name = feature_name
 
-if addCorners:
-    Utils_arcpy.addLayerToGroup(pMap, corners_Shapefile_result, lyr_corners, lyr_group)
-if addWalls:
-    Utils_arcpy.addLayerToGroup(pMap, walls_Shapefile_result, lyr_walls, lyr_group)
-if bVulnerability:
-    if addRiskAngle:
-        Utils_arcpy.addLayerToGroup(pMap, buildings_Shapefile_result, lyr_building_risk_a,lyr_group)
-    if addRiskSettl:
-        Utils_arcpy.addLayerToGroup(pMap, buildings_Shapefile_result, lyr_building_risk_sv, lyr_group)
-if addImpactAngle:
-    Utils_arcpy.addLayerToGroup(pMap, buildings_Shapefile_result, lyr_building_a_max, lyr_group)
+
 if addImpactSettl:
-    Utils_arcpy.addLayerToGroup(pMap, buildings_Shapefile_result, lyr_building_sv_max, lyr_group)
-
-#arcpy.SelectLayerByAttribute_management(buildings_Shapefile_result, "CLEAR_SELECTION")
-
-
-logger.info("------------------------------DONE-------------------------------")
-
-
-
+    Utils_arcpy.addLayerToGroup(pMap, buildings_Shapefile_result, lyr_building_sv_max, lyr_group,
+                    name="Maximum settlement each building experience")
+if addImpactAngle:
+    Utils_arcpy.addLayerToGroup(pMap, buildings_Shapefile_result, lyr_building_a_max, lyr_group,
+                    name="Maximum tilt each building experience")
+if bVulnerability:
+    if addRiskSettl:
+        Utils_arcpy.addLayerToGroup(pMap, buildings_Shapefile_result, lyr_building_risk_sv, lyr_group,
+                                    name="Building risk category based on settlement damage")
+    if addRiskAngle:
+        Utils_arcpy.addLayerToGroup(pMap, buildings_Shapefile_result, lyr_building_risk_a, lyr_group,
+                                    name="Building risk category based on tilt damage")
+if addWalls:
+    Utils_arcpy.addLayerToGroup(pMap, walls_Shapefile_result, lyr_walls, lyr_group,
+                                name="Tilt on building walls")
+if addCorners:
+    Utils_arcpy.addLayerToGroup(pMap, corners_Shapefile_result, lyr_corners, lyr_group,
+                                name="Settlement on building corners")

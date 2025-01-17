@@ -38,26 +38,22 @@ def addLayer(pMap, dataPath, lyrPath, name=""):
         arcpy.AddError(sys.exc_info()[1])
         raise
 
-
-def addLayerToGroup(pMap, dataPath, lyrPath, targetGroupLayer, name=""):
+def addLayerToGroup(pMap, dataPath, lyrPath, groupLayer, name=""):
     try:
-        newLyr = arcpy.mp.LayerFile(lyrPath)
-        newLay = pMap.addLayer(newLyr)[0]
-        conProp = newLay.connectionProperties
-        dataFolder = os.path.dirname(dataPath)
-        filename = os.path.basename(dataPath)
-        conProp['connection_info']['database'] = dataFolder
-        conProp['dataset'] = filename
-        newLay.updateConnectionProperties(newLay.connectionProperties, conProp, False, True)
+        newLay = pMap.addDataFromPath(dataPath)  # add data to map
+        lyrxLay = pMap.addDataFromPath(lyrPath)  # add lyrx to map
+        sym = lyrxLay.symbology  # get symbology from lyrx
+        newLay.symbology = sym  # apply symbology to data
+        pMap.removeLayer(lyrxLay)  # remove lyrx from project
         if name != "":
             newLay.name = name
-        pMap.addLayerToGroup(targetGroupLayer, newLay)
-        pMap.removeLayer(newLay)
-    except:
+        pMap.addLayerToGroup(groupLayer, newLay, "AUTO_ARRANGE")
+        pMap.removeLayer(newLay)  # remove lyrx from project
+        return newLay
+    except Exception:
         arcpy.AddError("Error in addLayerToGroup()\n")
         arcpy.AddError(sys.exc_info()[1])
         raise
-
 def getProjCodeFromFC(fc):
     return arcpy.Describe(fc).spatialReference.PCSCode
 

@@ -1,7 +1,6 @@
 coding_guide = 0 #avoids some sort of coding interpretation bugs
 # Prepared for open source release August 2022
 
-log_path = r'C:\Users\AOL\Documents\ArcGIS\BegrensSkadeCode\log'
 lyr_path = r'C:\Users\AOL\Documents\ArcGIS\BegrensSkadeCode\lyr'
 
 import arcpy
@@ -10,7 +9,7 @@ import os
 import traceback
 import logging.handlers
 import pathlib
-sys.path.append(log_path)
+
 import importlib
 import Utils
 import Utils_arcpy
@@ -23,7 +22,16 @@ importlib.reload(BegrensSkadeLib)
 
 CALCULATION_RANGE = 380
 
+##############  READ PARAMETERS ############################
+excavation_polys_fl = arcpy.GetParameter(0)
+output_folder = arcpy.GetParameterAsText(1)
+output_name = arcpy.GetParameterAsText(2)
+output_resolution = arcpy.GetParameterAsText(3)
+coord_syst = arcpy.GetParameterAsText(4)
+
 ##############  SETUP LOGGERS ##############################
+log_path = output_folder
+sys.path.append(log_path)
 maxLoggerFileSize = 2 * 1024 * 1024
 logger = logging.getLogger('BegrensSkade_IMPACTMAP')
 if not len(logger.handlers):
@@ -34,13 +42,6 @@ if not len(logger.handlers):
     logger.addHandler(hdlr)
     logger.setLevel(logging.DEBUG)
 ############################################################
-
-##############  READ PARAMETERS ############################
-excavation_polys_fl = arcpy.GetParameter(0)
-output_folder = arcpy.GetParameterAsText(1)
-output_name = arcpy.GetParameterAsText(2)
-output_resolution = arcpy.GetParameterAsText(3)
-coord_syst = arcpy.GetParameterAsText(4)
 
 logger.info("------------------------------NEW RUN: " + str(output_name)+"-------------------------------")
 
@@ -57,16 +58,15 @@ else:
     short_term_curve = None
 
 dtb_raster = arcpy.GetParameter(8)
-pw_reduction_curve = arcpy.GetParameterAsText(9)
-porewp_red = arcpy.GetParameter(10)
-dry_crust_thk = arcpy.GetParameter(11)
-dep_groundwater = arcpy.GetParameter(12)
-density_sat = arcpy.GetParameter(13)
-OCR = arcpy.GetParameter(14)
-janbu_ref_stress = arcpy.GetParameter(15)
-janbu_const = arcpy.GetParameter(16)
-janbu_m = arcpy.GetParameter(17)
-consolidation_time = arcpy.GetParameter(18)
+porewp_red_m = arcpy.GetParameter(9)
+dry_crust_thk = arcpy.GetParameter(10)
+dep_groundwater = arcpy.GetParameter(11)
+density_sat = arcpy.GetParameter(12)
+OCR = arcpy.GetParameter(13)
+janbu_ref_stress = arcpy.GetParameter(14)
+janbu_const = arcpy.GetParameter(15)
+janbu_m = arcpy.GetParameter(16)
+consolidation_time = arcpy.GetParameter(17)
 
 #bContours = arcpy.GetParameter(19)
 #if bContours:
@@ -157,12 +157,11 @@ try:
         CALCULATION_RANGE,
         output_proj,
         dtb_raster_str,
-        pw_reduction_curve,
+        porewp_red_m,
         dry_crust_thk,
         dep_groundwater,
         density_sat,
         OCR,
-        porewp_red,
         janbu_ref_stress,
         janbu_const,
         janbu_m,
@@ -218,7 +217,9 @@ p = arcpy.mp.ArcGISProject('CURRENT')
 pMap = p.activeMap
 #newLyr = pMap.addDataFromPath(result_contours)
 lyr_impactmap = lyr_path + os.sep + "SETTLEMENT_IMPACT_FIELD.lyrx"
-result_lyr = Utils_arcpy.addLayer(pMap, result_raster, lyr_impactmap, output_name)
+
+arcpy.SetParameterAsText(18, result_raster)
+arcpy.SetParameterSymbology(18, lyr_impactmap)
 
 logger.info("------------------------------DONE-------------------------------\n ")
 
