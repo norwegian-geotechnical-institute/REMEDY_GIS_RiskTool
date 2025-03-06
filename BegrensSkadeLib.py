@@ -595,6 +595,15 @@ def get_buildings_with_dtb(features, dtb_filename, fieldNameFoundation=None, fie
     foundation = None
     structure = None
     status = None
+    
+    min_x = gt[0]
+    max_y = gt[3]
+    max_x = min_x + (gt[1] * src_ds.RasterXSize)
+    min_y = max_y + (gt[5] * src_ds.RasterYSize)  # gt[5] is usually negative
+    
+    # Counter for points outside raster bounds
+    numPointsOutsideRaster = 0
+
 
     for buildingFeature in layer:
 
@@ -615,6 +624,13 @@ def get_buildings_with_dtb(features, dtb_filename, fieldNameFoundation=None, fie
 
         for pnt in g.GetPoints():
             if pnt:
+                x, y = pnt[0], pnt[1]
+
+                # Skip points outside the raster bounds
+                if x < min_x or x > max_x or y < min_y or y > max_y:
+                    numPointsOutsideRaster += 1
+                    continue
+                
                 px = int((pnt[0] - gt[0]) / gt[1])  # x pixel
                 py = int((pnt[1] - gt[3]) / gt[5])  # y pixel
                 dtb = rb.ReadAsArray(px, py, 1, 1)                
@@ -640,6 +656,10 @@ def get_buildings_with_dtb(features, dtb_filename, fieldNameFoundation=None, fie
             Building(bid, corners, g.GetArea(), g.Length(),
                      foundation=foundation, structure=structure, status=status, logger=logger))
         bid += 1
+    # Log the total number of skipped points **only once**
+    if numPointsOutsideRaster > 0:
+        logger.debug(f"Total points skipped due to falling outside raster bounds: {numPointsOutsideRaster}")
+
     logger.debug(f"Number of skipped buildings: {numSkippedBuildings} of {numBuildings} - get_buildings_with_dtb")
     return input_buildings
 
